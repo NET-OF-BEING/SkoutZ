@@ -4,14 +4,21 @@
 
 ## 🚀 Features
 
-- **Modern GUI Interface** - Professional desktop application with SKOUT.com branding
+- **Dual Mode Operation** - Browse Profiles AND Match Game automation
+- **Modern Tabbed Interface** - Easy switching between modes
+- **Browse Profiles Mode**:
+  - Smart "Show more" button detection for maximum reach
+  - Persistent memory - never message the same person twice
+  - Auto-save - profiles saved automatically
+- **Match Game Mode** 🎮:
+  - Automated messaging in Match Game
+  - Continuous message loop
+  - Fast-paced interaction
 - **Customizable Messages** - Enter any message you want to send
 - **Adjustable Speed Control** - Fine-tune automation speed (1-10, default: 7)
-- **Smart Profile Detection** - Automatically loads ALL profiles using "Show more" button
-- **Persistent Memory** - Never message the same person twice
 - **Real-time Activity Log** - Watch the bot work with live status updates
 - **Anti-Detection** - Advanced techniques to avoid bot detection
-- **Auto-Save** - Profiles saved automatically, resume anytime
+- **SKOUT.com Branding** - Professional color palette throughout
 
 ## 📦 Installation
 
@@ -36,14 +43,27 @@ The launcher will automatically:
    ./launch_skoutz.sh
    ```
 
-2. **Configure your campaign:**
+2. **Choose your mode:**
+   - **Browse Profiles** tab - Traditional profile-by-profile messaging
+   - **Match Game** tab 🎮 - Rapid-fire Match Game automation
+
+3. **Browse Profiles Mode:**
    - Enter your message in the text box
    - Adjust speed slider (1=slowest, 10=fastest, default=7)
    - Click **START** button
-
-3. **Monitor progress:**
+   - Bot will iterate through all profiles, clicking "Show more" as needed
    - Watch the live activity log
-   - See profiles being contacted in real-time
+   - Click **STOP** to pause anytime
+
+4. **Match Game Mode:** 🎮
+   - Enter your message in the text box
+   - Adjust speed slider for faster/slower messaging
+   - Click **START** button
+   - Bot will navigate to Match Game and continuously:
+     - Click the message button
+     - Type your message
+     - Click send
+     - Repeat
    - Click **STOP** to pause anytime
 
 ### Command Line Mode (Advanced)
@@ -144,4 +164,4 @@ See LICENSE file for details.
 ---
 
 **SkoutZ v2.0** - Professional Marketing Automation
-*Maximize your reach with smart automation*
+*Maximize your reach with dual-mode automation: Browse Profiles + Match Game* 🎮
