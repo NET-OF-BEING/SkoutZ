@@ -1,0 +1,69 @@
+# SkoutZ .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Sensitive Data - DO NOT COMMIT
+.env
+chrome_user_data/
+messaged_profiles.json
+skout_bot_log.txt
+
+# Browser profiles and session data
+firefox_profile/
+*.db
+*.db-journal
+*.sqlite
+
+# Logs and temporary files
+*.log
+*.txt
+!README.txt
+logs/
+temp/
+tmp/
+
+# Compiled executables
+*.exe
+*.dll
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
