@@ -76,13 +76,15 @@ class StartupConfigTests(unittest.TestCase):
     def test_message_entry_does_not_overwrite_message_with_trigger_character(self):
         bot_text = (ROOT / "SKOUT_MESSAGE_BOT.py").read_text(encoding="utf-8")
         gui_text = (ROOT / "skoutz_gui.py").read_text(encoding="utf-8")
+        helper_text = (ROOT / "message_draft.py").read_text(encoding="utf-8")
 
         self.assertNotIn('message_box.send_keys("H")', bot_text)
         self.assertNotIn('message_box.send_keys("H")', gui_text)
-        self.assertIn('return arguments[0].value;', bot_text)
-        self.assertIn('return arguments[0].value;', gui_text)
-        self.assertIn("Message text verification failed", bot_text)
-        self.assertIn("Message text verification failed", gui_text)
+        self.assertIn("prepare_message_draft", bot_text)
+        self.assertIn("prepare_message_draft", gui_text)
+        self.assertIn("Input.insertText", helper_text)
+        self.assertIn('return arguments[0].value;', helper_text)
+        self.assertIn("Message text verification failed", helper_text)
 
     def test_profile_is_only_recorded_after_verified_manual_draft(self):
         bot_text = (ROOT / "SKOUT_MESSAGE_BOT.py").read_text(encoding="utf-8")

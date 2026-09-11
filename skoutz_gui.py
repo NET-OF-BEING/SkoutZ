@@ -33,8 +33,13 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException
+from selenium.common.exceptions import (
+    ElementClickInterceptedException,
+    StaleElementReferenceException,
+    NoSuchElementException,
+)
 from webdriver_manager.chrome import ChromeDriverManager
+from message_draft import prepare_message_draft, read_message_value
 from profile_progress import visible_profiles_are_exhausted
 
 
@@ -118,15 +123,13 @@ class MatchGameBot:
                         EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[data-testid="chat-message-input"]'))
                     )
 
-                    # Click to focus
-                    ActionChains(self.driver).move_to_element(textarea).click().perform()
-                    self.random_wait(0.2, 0.2)
-
-                    # Clear and type message
-                    textarea.clear()
-                    textarea.send_keys(self.message)
-                    self.log(f"💬 Typed message: {self.message}")
-                    self.random_wait(0.3, 0.3)
+                    prepare_message_draft(
+                        self.driver,
+                        textarea,
+                        self.message,
+                        wait_after_write=lambda: self.random_wait(0.2, 0.2),
+                    )
+                    self.log(f"💬 Prepared message draft: {self.message}")
 
                 except Exception as e:
                     self.log(f"⚠️  Textarea not found: {e}")
@@ -137,9 +140,7 @@ class MatchGameBot:
                     WebDriverWait(self.driver, 3).until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[type="submit"][data-testid="send"], button[type="submit"] span[data-testid="send"]'))
                     )
-                    entered_message = self.driver.execute_script(
-                        "return arguments[0].value;", textarea
-                    )
+                    entered_message = read_message_value(self.driver, textarea)
                     if entered_message != self.message:
                         raise RuntimeError(
                             f"Message text changed before manual send ({len(entered_message or '')}/{len(self.message)} characters)"
@@ -377,6 +378,9 @@ class SkoutZBot:
                     profile_buttons = self.driver.find_elements(
                         By.CSS_SELECTOR, "li.profile-card-element button.outline-hidden"
                     )
+                    if i >= len(profile_buttons):
+                        self.log("♻️  Profile list changed while iterating; refreshing visible profiles.")
+                        break
                     button = profile_buttons[i]
                     profile_label = button.get_attribute("aria-label")
 
@@ -409,38 +413,32 @@ class SkoutZBot:
                         icebreaker_icon = wait.until(
                             EC.element_to_be_clickable((By.CSS_SELECTOR, 'span[data-testid="social-icebreaker-filled"]'))
                         )
-                        icebreaker_icon.click()
+                        try:
+                            icebreaker_icon.click()
+                        except ElementClickInterceptedException:
+                            dialog_open = self.driver.execute_script(
+                                "return !!document.querySelector('dialog#icebreaker-dialog[open]');"
+                            )
+                            if not dialog_open:
+                                raise
+                            self.log("ℹ️  Icebreaker dialog was already open; continuing with it.")
                         self.random_wait(0.5, 0.5)
 
                         message_box = wait.until(
                             EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[name="message"]'))
                         )
 
-                        ActionChains(self.driver).move_to_element(message_box).click().perform()
-                        self.random_wait(0.1, 0.2)
-
-                        self.driver.execute_script("""
-                            arguments[0].value = arguments[1];
-                            arguments[0].dispatchEvent(new Event('input', { bubbles: true }));
-                            arguments[0].dispatchEvent(new Event('change', { bubbles: true }));
-                            arguments[0].focus();
-                        """, message_box, self.message)
-                        self.random_wait(0.2, 0.3)
-
-                        entered_message = self.driver.execute_script(
-                            "return arguments[0].value;", message_box
+                        prepare_message_draft(
+                            self.driver,
+                            message_box,
+                            self.message,
+                            wait_after_write=lambda: self.random_wait(0.2, 0.3),
                         )
-                        if entered_message != self.message:
-                            raise RuntimeError(
-                                f"Message text verification failed ({len(entered_message or '')}/{len(self.message)} characters)"
-                            )
 
                         wait.until(
                             EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[type="submit"] span[data-testid="send"]'))
                         )
-                        entered_message = self.driver.execute_script(
-                            "return arguments[0].value;", message_box
-                        )
+                        entered_message = read_message_value(self.driver, message_box)
                         if entered_message != self.message:
                             raise RuntimeError(
                                 f"Message text changed before manual send ({len(entered_message or '')}/{len(self.message)} characters)"

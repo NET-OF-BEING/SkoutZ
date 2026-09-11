@@ -31,6 +31,7 @@ from selenium.webdriver.common.action_chains import ActionChains  # For advanced
 from selenium.webdriver.support.ui import WebDriverWait            # Explicit waits until conditions met
 from selenium.webdriver.support import expected_conditions as EC   # Common expected conditions
 from selenium.common.exceptions import (  # Handle browser/page lifecycle failures
+    ElementClickInterceptedException,
     InvalidSessionIdException,
     NoSuchWindowException,
     StaleElementReferenceException,
@@ -43,6 +44,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 # Your canned icebreaker message imported from external file
 from message_text import message   
 from chrome_profile import quarantine_cache_dirs
+from message_draft import prepare_message_draft, read_message_value
 from profile_progress import visible_profiles_are_exhausted
 
 # ────────────── RANDOM WAIT HELPER FUNCTION ──────────────
@@ -411,6 +413,9 @@ def send_message_to_profiles() -> None:
                 profile_buttons = driver.find_elements(
                     By.CSS_SELECTOR, "li.profile-card-element button.outline-hidden"
                 )
+                if i >= len(profile_buttons):
+                    log("♻️  Profile list changed while iterating; refreshing visible profiles.")
+                    break
                 button = profile_buttons[i]
 
                 profile_label = button.get_attribute("aria-label")
@@ -457,7 +462,15 @@ def send_message_to_profiles() -> None:
                         )
                     )
                     log(f"✅ Message icon found, clicking...")
-                    icebreaker_icon.click()
+                    try:
+                        icebreaker_icon.click()
+                    except ElementClickInterceptedException:
+                        dialog_open = driver.execute_script(
+                            "return !!document.querySelector('dialog#icebreaker-dialog[open]');"
+                        )
+                        if not dialog_open:
+                            raise
+                        log("ℹ️  Icebreaker dialog was already open; continuing with it.")
                     random_wait(0.5, 0.5)  # Let message textarea render
 
                     # Locate message textarea & type message
@@ -468,35 +481,19 @@ def send_message_to_profiles() -> None:
                     )
                     log(f"💬 Preparing message draft for '{profile_label}'")
 
-                    # Focus the textbox so the send button becomes active.
-                    ActionChains(driver).move_to_element(message_box).click().perform()
-                    random_wait(0.1, 0.2)  # Brief pause after focus
-
-                    # Set the complete message without typing a trigger character.
-                    driver.execute_script("""
-                        arguments[0].value = arguments[1];
-                        arguments[0].dispatchEvent(new Event('input', { bubbles: true }));
-                        arguments[0].dispatchEvent(new Event('change', { bubbles: true }));
-                        arguments[0].focus();
-                    """, message_box, message)
-                    random_wait(0.2, 0.3)  # Brief pause after typing
-
-                    entered_message = driver.execute_script(
-                        "return arguments[0].value;", message_box
+                    prepare_message_draft(
+                        driver,
+                        message_box,
+                        message,
+                        wait_after_write=lambda: random_wait(0.2, 0.3),
                     )
-                    if entered_message != message:
-                        raise RuntimeError(
-                            f"Message text verification failed ({len(entered_message or '')}/{len(message)} characters)"
-                        )
 
                     wait.until(
                         EC.element_to_be_clickable(
                             (By.CSS_SELECTOR, 'button[type="submit"] span[data-testid="send"]')
                         )
                     )
-                    entered_message = driver.execute_script(
-                        "return arguments[0].value;", message_box
-                    )
+                    entered_message = read_message_value(driver, message_box)
                     if entered_message != message:
                         raise RuntimeError(
                             f"Message text changed before manual send ({len(entered_message or '')}/{len(message)} characters)"
