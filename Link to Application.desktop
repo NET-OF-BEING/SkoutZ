@@ -1,0 +1,16 @@
+[Desktop Entry]
+Comment[en_US]=Launch SkoutZ
+Comment=Launch SkoutZ
+Exec=/home/panda/Documents/PythonScripts/SKOUT/launch_skoutz.sh
+GenericName[en_US]=
+GenericName=
+Icon=/home/panda/Documents/PythonScripts/SKOUT/Skout_square_logo_vector.svg
+MimeType=
+Name[en_US]=SkoutZ
+Name=SkoutZ
+Path=/home/panda/Documents/PythonScripts/SKOUT
+StartupNotify=true
+Terminal=false
+Type=Application
+X-KDE-SubstituteUID=false
+X-KDE-Username=
