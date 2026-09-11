@@ -40,6 +40,7 @@ from selenium.common.exceptions import (
 )
 from webdriver_manager.chrome import ChromeDriverManager
 from message_draft import prepare_message_draft, read_message_value
+from page_scroll import scroll_discover_page
 from profile_progress import visible_profiles_are_exhausted
 
 
@@ -274,8 +275,18 @@ class SkoutZBot:
 
     def scroll_to_bottom(self):
         """Scroll and click 'Show more' button"""
-        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        self.random_wait(1, 1)
+        scroll_result = scroll_discover_page(
+            self.driver,
+            wait_after_scroll=lambda: self.random_wait(1, 1),
+        )
+        if scroll_result.get("scrolled"):
+            self.log(
+                "🔽 Scrolled Discover profiles "
+                f"via {scroll_result.get('target', 'page')} "
+                f"({scroll_result.get('before')} → {scroll_result.get('after')})."
+            )
+        else:
+            self.log("⚠️  Discover page did not move; trying 'Show more' if available.")
 
         for attempt in range(3):
             try:

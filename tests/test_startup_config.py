@@ -119,6 +119,10 @@ class StartupConfigTests(unittest.TestCase):
         self.assertIn("visible_profiles_are_exhausted(profile_labels, self.messaged_profiles)", gui_text)
         self.assertIn("All visible profiles are already recorded", bot_text)
         self.assertIn("All visible profiles are already recorded", gui_text)
+        self.assertIn("scroll_discover_page", bot_text)
+        self.assertIn("scroll_discover_page", gui_text)
+        self.assertNotIn("window.scrollTo(0, document.body.scrollHeight);", bot_text)
+        self.assertNotIn("window.scrollTo(0, document.body.scrollHeight);", gui_text)
 
 
 if __name__ == "__main__":

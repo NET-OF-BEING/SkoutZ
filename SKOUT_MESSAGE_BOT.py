@@ -45,6 +45,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from message_text import message   
 from chrome_profile import quarantine_cache_dirs
 from message_draft import prepare_message_draft, read_message_value
+from page_scroll import scroll_discover_page
 from profile_progress import visible_profiles_are_exhausted
 
 # ────────────── RANDOM WAIT HELPER FUNCTION ──────────────
@@ -265,8 +266,18 @@ def scroll_to_bottom() -> None:
     Followed by a random wait to simulate reading/thinking time.
     Optimized for speed - reduced wait times.
     """
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    random_wait(1, 1)  # Wait 0.5-1.5 seconds (halved from 2-5)
+    scroll_result = scroll_discover_page(
+        driver,
+        wait_after_scroll=lambda: random_wait(1, 1),
+    )
+    if scroll_result.get("scrolled"):
+        log(
+            "🔽 Scrolled Discover profiles "
+            f"via {scroll_result.get('target', 'page')} "
+            f"({scroll_result.get('before')} → {scroll_result.get('after')})."
+        )
+    else:
+        log("⚠️  Discover page did not move; trying 'Show more' if available.")
 
     # Try to click "Show more" button if it appears (with retry logic for stale elements)
     for attempt in range(3):
