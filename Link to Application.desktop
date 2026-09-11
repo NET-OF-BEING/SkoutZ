@@ -1,7 +1,7 @@
 [Desktop Entry]
-Comment[en_US]=Launch SkoutZ
-Comment=Launch SkoutZ
-Exec=/home/panda/Documents/PythonScripts/SKOUT/launch_skoutz.sh
+Comment[en_US]=Launch SkoutZ normal bot
+Comment=Launch SkoutZ normal bot
+Exec=/home/panda/Documents/PythonScripts/SKOUT/run_skout_bot.sh
 GenericName[en_US]=
 GenericName=
 Icon=/home/panda/Documents/PythonScripts/SKOUT/Skout_square_logo_vector.svg
@@ -10,7 +10,7 @@ Name[en_US]=SkoutZ
 Name=SkoutZ
 Path=/home/panda/Documents/PythonScripts/SKOUT
 StartupNotify=true
-Terminal=false
+Terminal=true
 Type=Application
 X-KDE-SubstituteUID=false
 X-KDE-Username=

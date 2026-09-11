@@ -46,8 +46,9 @@ class StartupConfigTests(unittest.TestCase):
     def test_desktop_entry_launches_project_script(self):
         text = (ROOT / "Link to Application.desktop").read_text(encoding="utf-8")
         self.assertIn("Name=SkoutZ", text)
-        self.assertIn("Exec=/home/panda/Documents/PythonScripts/SKOUT/launch_skoutz.sh", text)
+        self.assertIn("Exec=/home/panda/Documents/PythonScripts/SKOUT/run_skout_bot.sh", text)
         self.assertIn("Path=/home/panda/Documents/PythonScripts/SKOUT", text)
+        self.assertIn("Terminal=true", text)
 
     def test_quarantine_cache_dirs_preserves_profile_data(self):
         with TemporaryDirectory() as temp_dir:
