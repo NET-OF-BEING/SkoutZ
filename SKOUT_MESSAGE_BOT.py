@@ -43,6 +43,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 # Your canned icebreaker message imported from external file
 from message_text import message   
 from chrome_profile import quarantine_cache_dirs
+from profile_progress import visible_profiles_are_exhausted
 
 # ────────────── RANDOM WAIT HELPER FUNCTION ──────────────
 def random_wait(base_seconds=2, variation=2):
@@ -387,6 +388,15 @@ def send_message_to_profiles() -> None:
                 )
             continue
 
+        profile_labels = [
+            button.get_attribute("aria-label")
+            for button in profile_buttons
+        ]
+        if visible_profiles_are_exhausted(profile_labels, messaged_profiles):
+            log("🔁 All visible profiles are already recorded; scrolling to load more.")
+            scroll_to_bottom()
+            continue
+
         no_new_profiles_count = 0  # Reset counter when profiles are found
 
         print(f"📋 Found {len(profile_buttons)} profiles on page")
@@ -408,9 +418,6 @@ def send_message_to_profiles() -> None:
                 # Skip if no label or already messaged
                 if not profile_label or profile_label in messaged_profiles:
                     continue
-
-                # Mark as messaged immediately to avoid double-processing
-                messaged_profiles.add(profile_label)
 
                 # Open the profile modal using ActionChains for reliable click
                 ActionChains(driver).move_to_element(button).click().perform()
@@ -459,7 +466,7 @@ def send_message_to_profiles() -> None:
                             (By.CSS_SELECTOR, 'textarea[name="message"]')
                         )
                     )
-                    log(f"💬 Sending message to '{profile_label}'")
+                    log(f"💬 Preparing message draft for '{profile_label}'")
 
                     # Focus the textbox so the send button becomes active.
                     ActionChains(driver).move_to_element(message_box).click().perform()
@@ -482,18 +489,33 @@ def send_message_to_profiles() -> None:
                             f"Message text verification failed ({len(entered_message or '')}/{len(message)} characters)"
                         )
 
-                    # Click the send button
-                    send_button = wait.until(
+                    wait.until(
                         EC.element_to_be_clickable(
                             (By.CSS_SELECTOR, 'button[type="submit"] span[data-testid="send"]')
                         )
                     )
-                    send_button.click()
-                    log(f"📨 Message sent to '{profile_label}'")
-                    random_wait(0.3, 0.5)  # Quick wait after sending (optimized)
+                    entered_message = driver.execute_script(
+                        "return arguments[0].value;", message_box
+                    )
+                    if entered_message != message:
+                        raise RuntimeError(
+                            f"Message text changed before manual send ({len(entered_message or '')}/{len(message)} characters)"
+                        )
+
+                    log(f"📝 Draft prepared for manual review for '{profile_label}'.")
+                    response = input(
+                        "Review the draft in Chrome. Press Enter after manually sending it, "
+                        "or type skip and press Enter to leave this profile unrecorded: "
+                    ).strip().lower()
+                    if response == "skip":
+                        log(f"⏭️  Draft skipped for '{profile_label}'")
+                    else:
+                        messaged_profiles.add(profile_label)
+                        log(f"✅ Manual send confirmed for '{profile_label}'")
+                    random_wait(0.3, 0.5)
 
                 except Exception as e:
-                    log(f"⚠️  Could not send message to '{profile_label}': {e}")
+                    log(f"⚠️  Could not prepare message draft for '{profile_label}': {e}")
 
                 # Save updated messaged profiles memory to disk
                 save_profiles()

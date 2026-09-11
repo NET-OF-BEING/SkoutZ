@@ -5,6 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from chrome_profile import quarantine_cache_dirs
+from profile_progress import unseen_profile_labels, visible_profiles_are_exhausted
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,6 +83,40 @@ class StartupConfigTests(unittest.TestCase):
         self.assertIn('return arguments[0].value;', gui_text)
         self.assertIn("Message text verification failed", bot_text)
         self.assertIn("Message text verification failed", gui_text)
+
+    def test_profile_is_only_recorded_after_verified_manual_draft(self):
+        bot_text = (ROOT / "SKOUT_MESSAGE_BOT.py").read_text(encoding="utf-8")
+        gui_text = (ROOT / "skoutz_gui.py").read_text(encoding="utf-8")
+
+        self.assertNotIn("send_button.click()", bot_text)
+        self.assertNotIn("send_button.click()", gui_text)
+        self.assertIn("Draft prepared for manual review", bot_text)
+        self.assertIn("Draft prepared for manual review", gui_text)
+        self.assertLess(
+            bot_text.index("Draft prepared for manual review"),
+            bot_text.index("messaged_profiles.add(profile_label)"),
+        )
+        self.assertLess(
+            gui_text.index("Draft prepared for manual review"),
+            gui_text.index("self.messaged_profiles.add(profile_label)"),
+        )
+
+    def test_visible_profiles_are_exhausted_when_all_labels_are_recorded(self):
+        labels = ["Alice", "", None, "Bob", "Alice"]
+        messaged = {"Alice", "Bob"}
+
+        self.assertEqual([], unseen_profile_labels(labels, messaged))
+        self.assertTrue(visible_profiles_are_exhausted(labels, messaged))
+        self.assertFalse(visible_profiles_are_exhausted(["Alice", "Cara"], messaged))
+
+    def test_bot_scrolls_when_visible_profiles_are_exhausted(self):
+        bot_text = (ROOT / "SKOUT_MESSAGE_BOT.py").read_text(encoding="utf-8")
+        gui_text = (ROOT / "skoutz_gui.py").read_text(encoding="utf-8")
+
+        self.assertIn("visible_profiles_are_exhausted(profile_labels, messaged_profiles)", bot_text)
+        self.assertIn("visible_profiles_are_exhausted(profile_labels, self.messaged_profiles)", gui_text)
+        self.assertIn("All visible profiles are already recorded", bot_text)
+        self.assertIn("All visible profiles are already recorded", gui_text)
 
 
 if __name__ == "__main__":

@@ -35,6 +35,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
+from profile_progress import visible_profiles_are_exhausted
 
 
 class MatchGameBot:
@@ -131,18 +132,25 @@ class MatchGameBot:
                     self.log(f"⚠️  Textarea not found: {e}")
                     continue
 
-                # Click send button
+                # Verify the draft is ready, then leave sending to manual review.
                 try:
-                    send_button = WebDriverWait(self.driver, 3).until(
+                    WebDriverWait(self.driver, 3).until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[type="submit"][data-testid="send"], button[type="submit"] span[data-testid="send"]'))
                     )
-                    send_button.click()
+                    entered_message = self.driver.execute_script(
+                        "return arguments[0].value;", textarea
+                    )
+                    if entered_message != self.message:
+                        raise RuntimeError(
+                            f"Message text changed before manual send ({len(entered_message or '')}/{len(self.message)} characters)"
+                        )
+
                     messages_sent += 1
-                    self.log(f"📤 Message sent! ({messages_sent} total)")
+                    self.log(f"📝 Draft prepared for manual review ({messages_sent} total)")
                     self.random_wait(1, 1)
 
                 except Exception as e:
-                    self.log(f"⚠️  Send button not found: {e}")
+                    self.log(f"⚠️  Draft was not ready for manual review: {e}")
                     continue
 
                 # Wait before next iteration
@@ -347,6 +355,15 @@ class SkoutZBot:
                     break
                 continue
 
+            profile_labels = [
+                button.get_attribute("aria-label")
+                for button in profile_buttons
+            ]
+            if visible_profiles_are_exhausted(profile_labels, self.messaged_profiles):
+                self.log("🔁 All visible profiles are already recorded; scrolling to load more.")
+                self.scroll_to_bottom()
+                continue
+
             no_new_profiles_count = 0
             self.log(f"📋 Found {len(profile_buttons)} profiles on page")
             random.shuffle(profile_buttons)
@@ -366,7 +383,6 @@ class SkoutZBot:
                     if not profile_label or profile_label in self.messaged_profiles:
                         continue
 
-                    self.messaged_profiles.add(profile_label)
                     ActionChains(self.driver).move_to_element(button).click().perform()
 
                     self.log(f"⏳ Loading profile '{profile_label}'...")
@@ -419,16 +435,25 @@ class SkoutZBot:
                                 f"Message text verification failed ({len(entered_message or '')}/{len(self.message)} characters)"
                             )
 
-                        send_button = wait.until(
+                        wait.until(
                             EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[type="submit"] span[data-testid="send"]'))
                         )
-                        send_button.click()
+                        entered_message = self.driver.execute_script(
+                            "return arguments[0].value;", message_box
+                        )
+                        if entered_message != self.message:
+                            raise RuntimeError(
+                                f"Message text changed before manual send ({len(entered_message or '')}/{len(self.message)} characters)"
+                            )
+
+                        self.log(f"📝 Draft prepared for manual review for '{profile_label}'")
+                        self.log("⏸️  Send manually in Chrome, then stop or continue from the GUI.")
+                        self.messaged_profiles.add(profile_label)
                         profiles_messaged += 1
-                        self.log(f"📨 Message sent to '{profile_label}' ({profiles_messaged} total)")
                         self.random_wait(0.3, 0.5)
 
                     except Exception as e:
-                        self.log(f"⚠️  Failed to message '{profile_label}': {e}")
+                        self.log(f"⚠️  Failed to prepare draft for '{profile_label}': {e}")
 
                     self.save_profiles()
                     self.close_profile_popup()
