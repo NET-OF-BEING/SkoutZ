@@ -65,6 +65,12 @@ class StartupConfigTests(unittest.TestCase):
             self.assertTrue(cookies.exists())
             self.assertTrue((backup / "Default" / "Cache" / "broken-entry").exists())
 
+    def test_bot_requires_manual_login_confirmation(self):
+        text = (ROOT / "SKOUT_MESSAGE_BOT.py").read_text(encoding="utf-8")
+        self.assertIn("Complete Google sign-in in Chrome", text)
+        self.assertIn("Sign-in was not completed", text)
+        self.assertNotIn('log("⚠️  Already logged in.")', text)
+
 
 if __name__ == "__main__":
     unittest.main()

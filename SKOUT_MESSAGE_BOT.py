@@ -176,20 +176,40 @@ except WebDriverException as error:
 
 
 # ────────────── LOGIN FLOW ──────────────
-try:
-    # Wait up to 2 seconds for login button (quick check)
-    login_button = WebDriverWait(driver, 2).until(
-        EC.element_to_be_clickable((By.XPATH, '//*[@id="menu-login-navigation"]/li/a'))
-    )
-    login_button.click()
-    log("🔐 Clicked the login button.")
-except Exception:
-    # Login button not found: assume already logged in
-    log("⚠️  Already logged in.")
+LOGIN_BUTTON_XPATH = '//*[@id="menu-login-navigation"]/li/a'
+PROFILE_BUTTON_SELECTOR = "li.profile-card-element button.outline-hidden"
+END_OF_PROFILES_XPATH = '//p[contains(text(), "We have already shown you everyone.")]'
 
-# Wait until page fully loads (quick check - 2 seconds max)
+try:
+    login_button = WebDriverWait(driver, 5).until(
+        EC.element_to_be_clickable((By.XPATH, LOGIN_BUTTON_XPATH))
+    )
+except Exception:
+    login_button = None
+
+if login_button is not None:
+    login_button.click()
+    log("🔐 Login page opened.")
+    print("🔐 Complete Google sign-in in Chrome, then return here and press Enter.")
+    input()
+else:
+    log("🔎 Existing session detected; checking that authentication is complete.")
+
+# Do not start the messaging loop until login has produced the campaign page.
+try:
+    WebDriverWait(driver, 30).until(
+        lambda d: d.find_elements(By.CSS_SELECTOR, PROFILE_BUTTON_SELECTOR)
+        or d.find_elements(By.XPATH, END_OF_PROFILES_XPATH)
+    )
+except Exception as error:
+    raise RuntimeError(
+        "Sign-in was not completed or the authenticated profile page did not load. "
+        "Finish Google sign-in in Chrome and press Enter only after Skout returns."
+    ) from error
+
+# Wait until page fully loads.
 print("⏳ Waiting for page load...")
-WebDriverWait(driver, 2).until(
+WebDriverWait(driver, 20).until(
     lambda d: d.execute_script("return document.readyState") == "complete"
 )
 log("✅ Page loaded!")
@@ -349,9 +369,7 @@ def send_message_to_profiles() -> None:
             pass  # Message not found, continue processing
 
         # Grab all profile buttons visible on the page (DOM can change dynamically)
-        profile_buttons = driver.find_elements(
-            By.CSS_SELECTOR, "li.profile-card-element button.outline-hidden"
-        )
+        profile_buttons = driver.find_elements(By.CSS_SELECTOR, PROFILE_BUTTON_SELECTOR)
 
         # If no profiles found, trigger loading with scroll
         if not profile_buttons:
@@ -361,10 +379,12 @@ def send_message_to_profiles() -> None:
             driver.execute_script("window.scrollBy(0, -300);")
             time.sleep(1)
             no_new_profiles_count += 1
-            # If no profiles found after 5 attempts, likely reached the end
+            # Missing cards here usually means authentication did not finish.
             if no_new_profiles_count >= 5:
-                log("🛑 No new profiles found after multiple scrolls. Campaign complete!")
-                break
+                raise RuntimeError(
+                    "No authenticated profile cards appeared. "
+                    "Sign-in was not completed or Skout did not return to the campaign page."
+                )
             continue
 
         no_new_profiles_count = 0  # Reset counter when profiles are found
