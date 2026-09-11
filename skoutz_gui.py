@@ -403,9 +403,6 @@ class SkoutZBot:
                         ActionChains(self.driver).move_to_element(message_box).click().perform()
                         self.random_wait(0.1, 0.2)
 
-                        message_box.send_keys("H")
-                        self.random_wait(0.1, 0.2)
-
                         self.driver.execute_script("""
                             arguments[0].value = arguments[1];
                             arguments[0].dispatchEvent(new Event('input', { bubbles: true }));
@@ -413,6 +410,14 @@ class SkoutZBot:
                             arguments[0].focus();
                         """, message_box, self.message)
                         self.random_wait(0.2, 0.3)
+
+                        entered_message = self.driver.execute_script(
+                            "return arguments[0].value;", message_box
+                        )
+                        if entered_message != self.message:
+                            raise RuntimeError(
+                                f"Message text verification failed ({len(entered_message or '')}/{len(self.message)} characters)"
+                            )
 
                         send_button = wait.until(
                             EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[type="submit"] span[data-testid="send"]'))

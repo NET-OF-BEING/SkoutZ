@@ -461,15 +461,11 @@ def send_message_to_profiles() -> None:
                     )
                     log(f"💬 Sending message to '{profile_label}'")
 
-                    # CRITICAL: Click to focus textbox first (activates send button)
+                    # Focus the textbox so the send button becomes active.
                     ActionChains(driver).move_to_element(message_box).click().perform()
                     random_wait(0.1, 0.2)  # Brief pause after focus
 
-                    # Send single character to trigger button activation
-                    message_box.send_keys("H")
-                    random_wait(0.1, 0.2)
-
-                    # Now inject full message via JavaScript
+                    # Set the complete message without typing a trigger character.
                     driver.execute_script("""
                         arguments[0].value = arguments[1];
                         arguments[0].dispatchEvent(new Event('input', { bubbles: true }));
@@ -477,6 +473,14 @@ def send_message_to_profiles() -> None:
                         arguments[0].focus();
                     """, message_box, message)
                     random_wait(0.2, 0.3)  # Brief pause after typing
+
+                    entered_message = driver.execute_script(
+                        "return arguments[0].value;", message_box
+                    )
+                    if entered_message != message:
+                        raise RuntimeError(
+                            f"Message text verification failed ({len(entered_message or '')}/{len(message)} characters)"
+                        )
 
                     # Click the send button
                     send_button = wait.until(

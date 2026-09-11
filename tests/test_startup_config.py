@@ -71,6 +71,17 @@ class StartupConfigTests(unittest.TestCase):
         self.assertIn("Sign-in was not completed", text)
         self.assertNotIn('log("⚠️  Already logged in.")', text)
 
+    def test_message_entry_does_not_overwrite_message_with_trigger_character(self):
+        bot_text = (ROOT / "SKOUT_MESSAGE_BOT.py").read_text(encoding="utf-8")
+        gui_text = (ROOT / "skoutz_gui.py").read_text(encoding="utf-8")
+
+        self.assertNotIn('message_box.send_keys("H")', bot_text)
+        self.assertNotIn('message_box.send_keys("H")', gui_text)
+        self.assertIn('return arguments[0].value;', bot_text)
+        self.assertIn('return arguments[0].value;', gui_text)
+        self.assertIn("Message text verification failed", bot_text)
+        self.assertIn("Message text verification failed", gui_text)
+
 
 if __name__ == "__main__":
     unittest.main()
