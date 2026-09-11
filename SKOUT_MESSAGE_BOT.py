@@ -20,6 +20,7 @@ import json      # For saving/loading messaged profile IDs persistently as JSON
 import time      # To pause execution for waits/delays
 import logging   # To log activity both to console and file with timestamps
 import random    # To generate randomized wait times for human-like pacing
+from pathlib import Path
 
 # Selenium modules for browser automation:
 from selenium import webdriver
@@ -29,13 +30,19 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains  # For advanced user interactions
 from selenium.webdriver.support.ui import WebDriverWait            # Explicit waits until conditions met
 from selenium.webdriver.support import expected_conditions as EC   # Common expected conditions
-from selenium.common.exceptions import StaleElementReferenceException  # Handle dynamic page elements
+from selenium.common.exceptions import (  # Handle browser/page lifecycle failures
+    InvalidSessionIdException,
+    NoSuchWindowException,
+    StaleElementReferenceException,
+    WebDriverException,
+)
 
 # Webdriver manager for automatic ChromeDriver version management
 from webdriver_manager.chrome import ChromeDriverManager
 
 # Your canned icebreaker message imported from external file
 from message_text import message   
+from chrome_profile import quarantine_cache_dirs
 
 # ────────────── RANDOM WAIT HELPER FUNCTION ──────────────
 def random_wait(base_seconds=2, variation=2):
@@ -78,6 +85,8 @@ def log(msg: str) -> None:
 
 # ────────────── PERSISTENT MEMORY ──────────────
 MESSAGED_JSON_PATH = "messaged_profiles.json"
+USER_DATA_DIR = Path(os.getcwd()) / "chrome_user_data"
+CHROME_PROFILE_DIRECTORY = os.environ.get("SKOUT_PROFILE_DIRECTORY", "Profile1")
 
 # Load previously messaged profile IDs from disk
 if os.path.exists(MESSAGED_JSON_PATH):
@@ -115,23 +124,56 @@ options.add_argument("--start-maximized")
 
 # If NOT using your profile, create a local temp profile for this bot
 if not any('user-data-dir' in arg for arg in options.arguments):
-    user_data_dir = os.path.join(os.getcwd(), "chrome_user_data")
-    os.makedirs(user_data_dir, exist_ok=True)
-    options.add_argument(f"user-data-dir={user_data_dir}")
+    USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    options.add_argument(f"user-data-dir={USER_DATA_DIR}")
+if CHROME_PROFILE_DIRECTORY:
+    options.add_argument(f"profile-directory={CHROME_PROFILE_DIRECTORY}")
 
-# Create WebDriver instance - webdriver-manager will auto-download correct ChromeDriver
-print("⏳ Initializing ChromeDriver (cached after first run)...")
-service = Service(ChromeDriverManager().install())
-driver = webdriver.Chrome(service=service, options=options)
+def create_driver():
+    """Create a Chrome session using the project-local persistent profile."""
+    print("⏳ Initializing ChromeDriver (cached after first run)...")
+    service = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=options)
 
-# Remove webdriver property to further hide automation
-driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
-log("✅ Chrome driver initialized successfully!")
+def browser_disconnect(error: WebDriverException) -> bool:
+    """Identify a dead Chrome renderer/session that is safe to recover."""
+    return isinstance(error, (InvalidSessionIdException, NoSuchWindowException)) or any(
+        phrase in str(error).lower()
+        for phrase in ("unable to receive message from renderer", "target window already closed")
+    )
 
-# Navigate to Skout homepage
-print("🌐 Loading skout.com...")
-driver.get("https://skout.com")
+
+def load_homepage(active_driver):
+    """Apply the webdriver tweak and load Skout, returning the live driver."""
+    active_driver.execute_script(
+        "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+    )
+    log("✅ Chrome driver initialized successfully!")
+    print("🌐 Loading skout.com...")
+    active_driver.get("https://skout.com")
+    return active_driver
+
+
+# A damaged disk cache can kill Chrome's renderer during the first navigation.
+# Quarantine only cache directories, then retry with cookies/profile data intact.
+driver = None
+try:
+    driver = load_homepage(create_driver())
+except WebDriverException as error:
+    if not browser_disconnect(error):
+        raise
+    log("⚠️ Chrome renderer disconnected; repairing the local browser cache and retrying.")
+    try:
+        if driver is not None:
+            driver.quit()
+    except WebDriverException:
+        pass
+    backup_dir = quarantine_cache_dirs(USER_DATA_DIR)
+    if backup_dir:
+        log(f"🧹 Chrome cache moved to {backup_dir}; profile data was preserved.")
+    driver = load_homepage(create_driver())
+
 
 # ────────────── LOGIN FLOW ──────────────
 try:
